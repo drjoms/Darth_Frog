@@ -94,7 +94,7 @@ if tar -czvf "$wheretosave".tar.gz  "$wheretosave"; then
 echo succesfully created archive of your blueprint.
 ls "$wheretosave"
 echo cleaning up after ourself.
-rm "$wheretosave/" -rv;
+rm "$wheretosave/" -rfv;
 mkdir -p "$wheretosave/"
 
 mv "$wheretosave".tar.gz "$wheretosave" -v
