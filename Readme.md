@@ -129,7 +129,7 @@ To transition Darth Frog from a tactical prototype to a hardened, industry-stand
 
 • 🛡️ **Supply Chain Integrity:** Implementing automated security auditing and dependency verification to mitigate supply-chain attacks and ensure the integrity of all compiled binaries. 
 • 📦 **Minimalist Architecture:** Maintaining a strict design principle of zero reliance on proprietary dependencies. We prioritize audited, open-source, and minimal-footprint libraries to ensure complete provenance and maximum transparency. 
-• 🏛️ **High-Assurance Attestation:** Integration: Scaling toward the seamless integration of a multitude of trusted, third-party Time Stamping Authorities (TSAs). This ensures the delivery of high-availability, court-admissible cryptographic proofs by leveraging existing global infrastructures. The long-term roadmap includes the potential deployment of a dedicated, low-latency TSA infrastructure, contingent upon reaching specific community-funded milestones.
+• 🏛️ **High-Assurance Attestation:** Integration: Scaling toward the seamless integration of a multitude of trusted, third-party Time Stamping Authorities (TSAs). This ensures the delivery of high-availability, court-admissible cryptographic proofs by leveraging existing global infrastructures. The long-term roadmap includes the potential deployment of a dedicated, low-latency TSA infrastructure, contingent upon reaching specific community-funded milestones.  
 
 ## 🛠 PROFESSIONAL SERVICES
 
