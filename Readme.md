@@ -129,7 +129,7 @@ To transition Darth Frog from a tactical prototype to a hardened, industry-stand
 
 • 🛡️ **Supply Chain Integrity:** Implementing automated security auditing and dependency verification to mitigate supply-chain attacks and ensure the integrity of all compiled binaries. 
 • 📦 **Minimalist Architecture:** Maintaining a strict design principle of zero reliance on proprietary dependencies. We prioritize audited, open-source, and minimal-footprint libraries to ensure complete provenance and maximum transparency. 
-• 🏛️ **High-Assurance Attestation Infrastructure:** Scaling toward the deployment of a dedicated, low-latency Time Stamping Authority (TSA). This infrastructure will provide high-availability, court-admissible cryptographic proofs for legal proceedings. 
+• 🏛️ **High-Assurance Attestation:** Integration: Scaling toward the seamless integration of a multitude of trusted, third-party Time Stamping Authorities (TSAs). This ensures the delivery of high-availability, court-admissible cryptographic proofs by leveraging existing global infrastructures. The long-term roadmap includes the potential deployment of a dedicated, low-latency TSA infrastructure, contingent upon reaching specific community-funded milestones.
 
 ## 🛠 PROFESSIONAL SERVICES
 
@@ -138,7 +138,6 @@ Available for paid consulting and contract work in Applied Cryptographic Enginee
 ### Specializations:
 • **PKI Construction:** End-to-end design and implementation of Public Key Infrastructure. 
 • **PKI Validation & Auditing:** Technical validation of PKI integrity, security posture, and implementation correctness. 
-• **Advanced Mechanism Implementation:** Implementation of advanced cryptographic primitives (e.g., multi-signature, zero-knowledge proofs, or custom attestation protocols). 
 
 ### Contact for Engagements:
 • 📧 **Email:** drjoms@gmail.com 
