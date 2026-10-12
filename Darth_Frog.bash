@@ -67,8 +67,8 @@ if test "$archive" = '';then
 #REMINDER, I could combine if above and two if below. 
 if cp -avr "$whattosave_full" "$backup_folder" ; then echo copied "$whattosave_full" to "$backup_folder"; else echo Script DID NOT work as intended.; exit 1; fi
 if realpath -e "$backup_folder"/"$whattosave" ; then :; else echo checked if original to be signed file/blueprint is copied over.; fi 
-backup_file="$backup_folder"/"$whattosave""$archive"
-
+backup_file="$backup_folder"/"$whattosave"
+echo this is backup file: "$backup_file"
 return 0
 
 
@@ -204,17 +204,15 @@ exit 0
 	unset $user_input[0]
 	if realpath -e "${user_input[@]}" && test -f "${user_input[@]}" ; then echo file "$(realpath -e "${user_input[@]}")" - exists, continuing; else echo file realpath -e "${user_input[@]}" does not exist or is a folder. "RAW" fucntionality is not supported for folder at this time. Script DID NOT work as intended.; exit 1; fi
 	
-	whattosave="${user_input[@]}"
+	whattosave="$(basename "${user_input[@]}")"
         whattosave_full="$(realpath -e "${user_input[@]}")"
-
-echo DEBUG: chosing raw hashing
 	create_archive
 
     ;;
   *)
 	archive='.tar.gz'
 	if realpath -e "${user_input[@]}" ; then echo file "$(realpath -e "${user_input[@]}")" - exists, continuing; else echo file realpath -e "${user_input[@]}" does not exist. Script DID NOT work as intended.; exit 1; fi
-	whattosave="${user_input[@]}"
+	whattosave="$(basename "${user_input[@]}")"
 	whattosave_full="$(realpath -e "${user_input[@]}")"
 	create_archive
 
