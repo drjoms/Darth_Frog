@@ -4,9 +4,12 @@
 
 
 
-#in seconds
+#in seconds, making sure we are not stuck for long time with one unresponsive server.
 open_ssl_timeout=10
-
+#minimum of succesful  attempts to contact TSA servers and getting response from. We only need one, but in court it looks better if there is more than one!
+TSA_GOOD_RESPONSES=5
+#list TSA servers script will attempt to contact.
+#much obliged, https://gist.github.com/Manouchehri/fd754e402d98430243455713efada710
 SERVERS=(
     "https://rfc3161.ai.moda/any"
     "http://timestamp.entrust.net/TSS/RFC3161sha2TS"
@@ -26,12 +29,15 @@ SERVERS=(
     "https://freetsa.org"
     "http://tsa.startssl.com/rfc3161"
     "http://dse200.ncipher.com/TSS/HttpTspServer"
-    "https://ca.signfiles.com/tsa/get.aspx"
     "http://services.globaltrustfinder.com/adss/tsa"
     "https://tsp.iaik.tugraz.at/tsp/TspRequest"
     "http://timestamp.entrust.net/TSS/RFC3161sha2TS"
     "http://timestamp.acs.microsoft.com"
 )
+
+
+
+
 
 user_input=("$@")
 current_date=$(date +%Y-%m-%d--%H-%M-%S)
@@ -60,6 +66,8 @@ echo making folder "$backup_folder"
 #creating folder where bluprint will be backed up and stored.
 if mkdir -pv "$backup_folder" ; then echo folder is created or does exists: $backup_folder, good ; else echo folder where backup/signed data is supposed to be - failed to create, operation has failed. Script DID NOT work as intended.; exit 1; fi
 
+#REMINDER - good idea, implement tar only for many small media files.
+#REMINDER - need to allow user to sign specific string, not just file.
 
 
 #not archiving data 
@@ -80,7 +88,7 @@ backup_file="$backup_folder"/"$whattosave""$archive"
 echo archived successesfully
 return 0
 
-elif test "$archive" = '.tar.gz' && test -d "$whattosave_full"  && tar -czvf "$backup_folder/""$(basename "$whattosave_full")""$archive"  -C "$(dirname "$whattosave_full")" -- "$whattosave" ;then
+elif test "$archive" = '.tar.gz' && test -d "$whattosave_full" && echo backing up folder "$backup_folder/""$(basename "$whattosave_full")""$archive" && tar -czvf "$backup_folder/""$(basename "$(realpath -e "$whattosave_full")")""$archive"  -C "$(dirname "$whattosave_full")" -- "$whattosave" ;then
 #checking if user wants to back up/sign folder + archiving it.
 #if tar -czvf "$backup_folder/""$(basename "$whattosave")""$archive"  -C "$(dirname "$whattosave_full")" -- "$whattosave" ; then
 backup_file="$backup_folder"/"$(basename "$whattosave")""$archive"
@@ -104,6 +112,9 @@ echo DEBUG KIKLLING FUCNTIONHERE FOR NOW
 exit 1
 }
 
+
+
+#need to add -t for tar only.
 case "${user_input[0]}"  in
   "-h")
  
@@ -212,7 +223,7 @@ exit 0
   *)
 	archive='.tar.gz'
 	if realpath -e "${user_input[@]}" ; then echo file "$(realpath -e "${user_input[@]}")" - exists, continuing; else echo file realpath -e "${user_input[@]}" does not exist. Script DID NOT work as intended.; exit 1; fi
-	whattosave="$(basename "${user_input[@]}")"
+	whattosave="$(basename "$(realpath -e "${user_input[@]}")")"
 	whattosave_full="$(realpath -e "${user_input[@]}")"
 	create_archive
 
@@ -220,22 +231,38 @@ exit 0
 esac
 
 
+
+function submit_recieve_TS(){
+
 query_file="$backup_file".ts
 if openssl ts -query -data "$backup_file"  -sha-256 -out "$backup_file".ts ; then  echo created ts request; else echo failed to create time stamp request. Script DID NOT work as intended. ; exit 1; fi
 #openssl ts -query -data "$wheretosave"/"$wheretosave"  -sha3-512  -out "$wheretosave"/"$wheretosave".ts
 
+#counting how many good TSA responses we got.
+good_responses=0
+
 for i in "${!SERVERS[@]}"; do
 {
     url="${SERVERS[$i]}"
-    echo "Attempting hit #$i on: $url"
+    echo "
+
+    Attempting signing of data numer #$i on TSA server below:
+    ^^^^$url^^^^
+
+    "
 
     # We use the index $i to give each response a unique name: response_0.ts, response_1.ts, etc.
-    if curl   --connect-timeout 20 -H "Content-Type: application/timestamp-query"  --data-binary "@""$query_file" "$url" -o "$query_file"_response"$i" ; then
-	echo got response into readlink -e "$query_file"_response"$i"
-	#openssl ts -verify -in "$wheretosave"/"$wheretosave.tar.gz.ts_response"
-	# this works - openssl ts -reply -in  /home/dimko/work/Darth_Frog/todo.txt_2026-09-30--23-00/todo.txt_2026-09-30--23-00.tar.gz.ts_response11  -text
-	echo "$url" >> "$backup_folder/url$i.txt"
-	echo URL that was used is "$url" and where its supposed to be saved: "$backup_folder/url$i.txt"
+    if curl   --connect-timeout 20 -H "Content-Type: application/timestamp-query"  --data-binary "@""$query_file" "$url" -o "$query_file"_response_"$i" ; then
+	echo got response into "$(readlink -e "$query_file"_response"$i")"
+	
+	# checking if response recieve was valid TSA server response, as per OpenSSL.
+	if printf "\n\n" && openssl ts -reply -text -in "$query_file"_response_"$i" ; then
+	if grep "Status: Granted." <<< $(openssl ts -reply -text -in "$query_file"_response_"$i") ; then : ; else echo recieved response showed no Granted status, skipping this TSA response. ; continue;  fi
+	
+	openssl ts -reply -token_out -in "$query_file"_response_"$i" |openssl pkcs7 -inform der -print
+	#documenting what URL wend into what respone. Number of responce corresponds to number of URL tried.
+	echo "$url" >> "$backup_folder/url_$i.txt"
+	echo URL that was used is "$url" and where its supposed to be saved: "$backup_folder/url_$i.txt"
 	#while at it, lets try to collect SSL certs of TSA servers, where possible.
 	if grep "https://" <<< "$url" ; then
 	echo attempting to collect SSL certificates from HTTPS enabled Time Stamp Server "$url" , to make life of defensive solicitors and defence vitnesses easier.
@@ -253,16 +280,41 @@ for i in "${!SERVERS[@]}"; do
 
 
 	fi
+
+	printf \n\n  we have got at least one valid Time Stamp Response. Above.
+	good_responses=$((good_responses + 1))
+	else echo response did not seem to contain good data;
+	fi
+
+
+
     else
         echo "FAILURE: $url is not accessible. Likely TSA web server is dead."
     fi
 }
 done
 
+}
+
+submit_recieve_TS
+
+
+if test "$good_responses" -ge "$TSA_GOOD_RESPONSES"  ; then
+:
+else
+echo "
+
+We got only this ammount of good responses: "$good_responses". This appears to be not enough! Operation failed. Not enough working TSA servers can be reached.
+Check your internet connection.
+"
+exit 1
+fi
+
+
 echo "
 
 
-you may want to move or back up this folder: "$backup_folder" on a different storage(usb drive or something similar, don't loose it!!!)
+You may want to move or back up this folder: "$backup_folder" on a different storage(usb drive or something similar, don't loose it!!!)
 Execution sucessfully completed.
 "
 exit 0
