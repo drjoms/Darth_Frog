@@ -212,7 +212,6 @@ exit 0
     unset user_input[0]
  	archive=''
 
-	unset $user_input[0]
 	if realpath -e "${user_input[@]}" && test -f "${user_input[@]}" ; then echo file "$(realpath -e "${user_input[@]}")" - exists, continuing; else echo file realpath -e "${user_input[@]}" does not exist or is a folder. "RAW" fucntionality is not supported for folder at this time. Script DID NOT work as intended.; exit 1; fi
 	
 	whattosave="$(basename "${user_input[@]}")"
@@ -230,12 +229,28 @@ exit 0
     ;;
 esac
 
+function compare_req_resp() {
+echo "Checking if response is describing request, by comaring send out and recieved message hashes.(what was actually timestamped).
+It's very important check!"
 
+#checking hash from response versus hash of query. It looks fragile, but in this specific case, I want to be wrong on safer side of things. If we have false negative in this check - its annoyance. If we have FALSE NEGATIVE HERE - "Huston, We got a problem!". I could use string manipulation here, to get hashes out and compare them. But its one of those "the less - is more" situations.
+if [[ "$(openssl ts -reply  -in "$1"  -text |grep -A 2 'Message data:')" == "$(openssl ts -query -text -in "$2" |grep -A 2 'Message data:' )"  ]] ; then
+echo Looks like hash from request to TSA server - matches hash from TSA server response. GOOD.
+return 0
+else echo There is a mismatch between response and request send to and from TSA server.
+echo reply
+openssl ts -reply  -in "$1"  -text |grep -A 2 'Message data:'
+echo query
+openssl ts -query -in "$2" |grep -A 2 'Message data:'
+return 1
+fi
+
+}
 
 function submit_recieve_TS(){
 
 query_file="$backup_file".ts
-if openssl ts -query -data "$backup_file"  -sha-256 -out "$backup_file".ts ; then  echo created ts request; else echo failed to create time stamp request. Script DID NOT work as intended. ; exit 1; fi
+if openssl ts -query -data "$backup_file" -cert -sha-256 -out "$backup_file".ts ; then  echo created ts request; else echo failed to create time stamp request. Script DID NOT work as intended. ; exit 1; fi
 #openssl ts -query -data "$wheretosave"/"$wheretosave"  -sha3-512  -out "$wheretosave"/"$wheretosave".ts
 
 #counting how many good TSA responses we got.
@@ -258,6 +273,7 @@ for i in "${!SERVERS[@]}"; do
 	# checking if response recieve was valid TSA server response, as per OpenSSL.
 	if printf "\n\n" && openssl ts -reply -text -in "$query_file"_response_"$i" ; then
 	if grep "Status: Granted." <<< $(openssl ts -reply -text -in "$query_file"_response_"$i") ; then : ; else echo recieved response showed no Granted status, skipping this TSA response. ; continue;  fi
+	if compare_req_resp "$query_file"_response_"$i"  "$query_file" ; then : ; else continue ; fi
 	
 	openssl ts -reply -token_out -in "$query_file"_response_"$i" |openssl pkcs7 -inform der -print
 	#documenting what URL wend into what respone. Number of responce corresponds to number of URL tried.
@@ -281,7 +297,7 @@ for i in "${!SERVERS[@]}"; do
 
 	fi
 
-	printf \n\n  we have got at least one valid Time Stamp Response. Above.
+	printf "\n\n  we have got at least one valid Time Stamp Response. Above."
 	good_responses=$((good_responses + 1))
 	else echo response did not seem to contain good data;
 	fi
