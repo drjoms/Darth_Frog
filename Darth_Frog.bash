@@ -256,6 +256,28 @@ if openssl ts -query -data "$backup_file" -cert -sha-256 -out "$backup_file".ts 
 #counting how many good TSA responses we got.
 good_responses=0
 
+
+#identifying storage of CA certs. there are two ways how CA are stored. Either bunch of many small file or new method, one big root CA file, that has many PEM root CA certs.
+#we will need it for verification later. We use OS provided trusted CA collection. If its good enough for IBM or Ubuntu or Gentoo - it's good enough for us!
+
+#this gives us immediate path to big CA collection file. Problem with this is that it MAY exist and yet not be used.
+roots_file=$(python3 -c "import ssl; print(ssl.get_default_verify_paths().cafile)" 2>>/dev/null )
+#checking if our python know where that giant CA storage is.
+if realpath -e "$roots_file" 2>>/dev/null ; then
+:
+#if not finding giant file, alternative approach - we use older python method of finding storage/doing CA checksum validation.
+#we find folder with CA root certs and there we seek for biggest file.
+else
+roots_file=$(python3 -c "import ssl; print(ssl.get_default_verify_paths().capath)" )
+roots_file="$roots_file"/"$(ls -S1r $roots_file |tail -n1)"
+
+if realpath -e "$roots_file" ; then echo we got root file "$roots_file"; else echo "we did not find root CA file from your OS. Please provide description of the OS in bug report."; return  1 ; fi
+
+fi
+
+
+
+
 for i in "${!SERVERS[@]}"; do
 {
     url="${SERVERS[$i]}"
@@ -273,12 +295,26 @@ for i in "${!SERVERS[@]}"; do
 	# checking if response recieve was valid TSA server response, as per OpenSSL.
 	if printf "\n\n" && openssl ts -reply -text -in "$query_file"_response_"$i" ; then
 	if grep "Status: Granted." <<< $(openssl ts -reply -text -in "$query_file"_response_"$i") ; then : ; else echo recieved response showed no Granted status, skipping this TSA response. ; continue;  fi
-	if compare_req_resp "$query_file"_response_"$i"  "$query_file" ; then : ; else continue ; fi
+	#if compare_req_resp "$query_file"_response_"$i"  "$query_file" ; then : ; else continue ; fi
 	
-	openssl ts -reply -token_out -in "$query_file"_response_"$i" |openssl pkcs7 -inform der -print
+
+	#openssl ts -reply -token_out -in "$query_file"_response_"$i" |openssl pkcs7 -inform der -print
 	#documenting what URL wend into what respone. Number of responce corresponds to number of URL tried.
 	echo "$url" >> "$backup_folder/url_$i.txt"
 	echo URL that was used is "$url" and where its supposed to be saved: "$backup_folder/url_$i.txt"
+	if openssl ts -verify  -data "$backup_file"  -in "$query_file"_response_"$i"  -CAfile "$roots_file" ; then
+	echo "SUCCESFULLY VERIFIED RESPONSE FROM TSA SERVER AGAINST BUILT IN OS ROOT CA.
+	This means that 3rd Party Time Stamping authority "$url" confirmed request.
+	If you have one of those messages, or ideally more - there now exists evidence of your backed up blueprint on third party servers.
+	It means, that whatever is in back up folder now - was created NOW and NOT AFTERWARDS. Don't worry, back up never left your computer!
+	(at least not through this script)
+	"
+	#IDEA: generate README for every back up folder!!!!!
+	
+
+
+	else echo response from TSA server "$url"  was unverifiable. ;
+	fi
 	#while at it, lets try to collect SSL certs of TSA servers, where possible.
 	if grep "https://" <<< "$url" ; then
 	echo attempting to collect SSL certificates from HTTPS enabled Time Stamp Server "$url" , to make life of defensive solicitors and defence vitnesses easier.
@@ -301,7 +337,7 @@ for i in "${!SERVERS[@]}"; do
 	good_responses=$((good_responses + 1))
 	else echo response did not seem to contain good data;
 	fi
-
+	
 
 
     else
